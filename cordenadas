@@ -1,0 +1,80 @@
+#include "teste.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Json.h"
+#include "JsonUtilities.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+
+// Sets default values
+Ateste::Ateste()
+{
+    PrimaryActorTick.bCanEverTick = true;
+}
+
+void Ateste::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    FString FilePath = FPaths::ProjectContentDir() + TEXT("tree.geojson");
+    FString FileContent;
+
+    if (!FFileHelper::LoadFileToString(FileContent, *FilePath))
+    {
+        UE_LOG(LogTemp, Error, TEXT("Erro ao abrir o ficheiro: %s"), *FilePath);
+        return;
+    }
+
+    // Parse JSON
+    TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(FileContent);
+    TSharedPtr<FJsonObject> JsonObject;
+
+    if (!FJsonSerializer::Deserialize(Reader, JsonObject) || !JsonObject.IsValid())
+    {
+        UE_LOG(LogTemp, Error, TEXT("Erro ao fazer parsing do ficheiro GeoJSON."));
+        return;
+    }
+
+    const TArray<TSharedPtr<FJsonValue>>* FeaturesArray;
+    if (JsonObject->TryGetArrayField(TEXT("features"), FeaturesArray) && FeaturesArray->Num() > 0)
+    {
+        TSharedPtr<FJsonObject> FeatureObject = (*FeaturesArray)[0]->AsObject();
+        if (!FeatureObject.IsValid())
+        {
+            UE_LOG(LogTemp, Error, TEXT("O primeiro feature não é um objeto JSON."));
+            return;
+        }
+
+        // Extrair OSM ID
+        FString OsmId;
+        if (FeatureObject->HasField(TEXT("properties")))
+        {
+            TSharedPtr<FJsonObject> Properties = FeatureObject->GetObjectField(TEXT("properties"));
+            Properties->TryGetStringField(TEXT("osm_id"), OsmId);
+            UE_LOG(LogTemp, Warning, TEXT("OSM ID: %s"), *OsmId);
+        }
+
+        // Extrair coordenadas
+        float Latitude = 0.0f;
+        float Longitude = 0.0f;
+
+        if (FeatureObject->HasField(TEXT("geometry")))
+        {
+            TSharedPtr<FJsonObject> Geometry = FeatureObject->GetObjectField(TEXT("geometry"));
+            const TArray<TSharedPtr<FJsonValue>>* CoordinatesArray;
+
+            if (Geometry->TryGetArrayField(TEXT("coordinates"), CoordinatesArray) && CoordinatesArray->Num() >= 2)
+            {
+                Longitude = static_cast<float>((*CoordinatesArray)[0]->AsNumber());
+                Latitude = static_cast<float>((*CoordinatesArray)[1]->AsNumber());
+
+                UE_LOG(LogTemp, Warning, TEXT("Latitude: %f, Longitude: %f"), Latitude, Longitude);
+            }
+        }
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("Nenhum feature encontrado no GeoJSON."));
+    }
+}

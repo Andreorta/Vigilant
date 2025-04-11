@@ -1,8 +1,12 @@
+#pragma once
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "CesiumGlobeAnchorComponent.h"
-#include "Components/StaticMeshComponent.h"
 #include "MeshAnchorActor.generated.h"
+
+class UCesiumGlobeAnchorComponent;
+class UStaticMeshComponent;
+class USceneComponent;
 
 UCLASS()
 class MYPROJECT6_API AMeshAnchorActor : public AActor
@@ -13,10 +17,13 @@ public:
     AMeshAnchorActor();
 
     UPROPERTY(VisibleAnywhere)
-    UStaticMeshComponent* Mesh;
+    USceneComponent* SceneRoot;
 
     UPROPERTY(VisibleAnywhere)
     UCesiumGlobeAnchorComponent* GlobeAnchor;
+
+    UPROPERTY(VisibleAnywhere)
+    UStaticMeshComponent* Mesh;
 
     void InitMeshAndLocation(UStaticMesh* MeshAsset, FVector GeoCoords);
 };

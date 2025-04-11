@@ -1,20 +1,24 @@
 #include "MeshAnchorActor.h"
-#include "Components/StaticMeshComponent.h"
 #include "CesiumGlobeAnchorComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Components/SceneComponent.h"
+#include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 
 AMeshAnchorActor::AMeshAnchorActor()
 {
     PrimaryActorTick.bCanEverTick = false;
 
-    // Criar o componente Cesium de ancoragem ao globo
+    // Componente raiz
+    SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
+    RootComponent = SceneRoot;
+
+    // Componente de ancoragem Cesium (sem Attach)
     GlobeAnchor = CreateDefaultSubobject<UCesiumGlobeAnchorComponent>(TEXT("GlobeAnchor"));
 
-    // ⚠️ Cast explícito necessário porque GlobeAnchor não é visto como USceneComponent diretamente
-    SetRootComponent(Cast<USceneComponent>(GlobeAnchor));
-
-    // Criar StaticMesh e anexá-lo ao componente de ancoragem
+    // Malha
     Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
-    Mesh->SetupAttachment(Cast<USceneComponent>(GlobeAnchor));
+    Mesh->SetupAttachment(SceneRoot);
 }
 
 void AMeshAnchorActor::InitMeshAndLocation(UStaticMesh* MeshAsset, FVector GeoCoords)
@@ -24,9 +28,26 @@ void AMeshAnchorActor::InitMeshAndLocation(UStaticMesh* MeshAsset, FVector GeoCo
         Mesh->SetStaticMesh(MeshAsset);
     }
 
-    FVector3d GeoCoordsD(GeoCoords.X, GeoCoords.Y, GeoCoords.Z);
+    // Coordenadas geográficas
+    FVector3d Llh(GeoCoords.X, GeoCoords.Y, GeoCoords.Z);
+    GlobeAnchor->MoveToLongitudeLatitudeHeight(Llh);
 
-    // ✅ Finalmente: função correta para versões estáveis do Cesium
-    GlobeAnchor->MoveToLongitudeLatitudeHeight(GeoCoordsD);
+    // Raycast para solo
+    FVector Start = GetActorLocation();
+    FVector End = Start - FVector(0, 0, 10000.0f);
+
+    FHitResult Hit;
+    FCollisionQueryParams Params;
+    Params.bTraceComplex = true;
+
+    if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+    {
+        FVector Impact = Hit.ImpactPoint;
+        SetActorLocation(Impact + FVector(0, 0, 5));
+        UE_LOG(LogTemp, Warning, TEXT("Raycast OK: altura ajustada para %f"), Impact.Z);
+    }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Raycast falhou: altura permanece a 200"));
+    }
 }
-

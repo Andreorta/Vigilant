@@ -26,4 +26,13 @@ public:
     UStaticMeshComponent* Mesh;
 
     void InitMeshAndLocation(UStaticMesh* MeshAsset, FVector GeoCoords);
+
+protected:
+    virtual void BeginPlay() override;
+
+private:
+    void AplicarRaycast();
+
+    FVector InitialGeoCoords;
+    FTimerHandle RaycastTimerHandle;
 };

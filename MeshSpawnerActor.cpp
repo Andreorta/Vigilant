@@ -32,7 +32,7 @@ void AMeshSpawnerActor::BeginPlay()
     FString GeoJsonPath = FPaths::ProjectContentDir() + TEXT("tree.geojson");
     CarregarGeoJSON(GeoJsonPath);
 
-    GetWorld()->GetTimerManager().SetTimer(RetryHandle, this, &AMeshSpawnerActor::SpawnTreesComRetry, 2.0f, false);
+    GetWorld()->GetTimerManager().SetTimer(RetryHandle, this, &AMeshSpawnerActor::SpawnTreesComRetry, 2.5f, false);
 }
 
 void AMeshSpawnerActor::CarregarGeoJSON(FString Caminho)
@@ -80,12 +80,19 @@ void AMeshSpawnerActor::SpawnTreesComRetry()
 
     for (const FVector& GeoCoord : GeoPositions)
     {
+        // Spawna o ator com rotação inicial nula
         AMeshAnchorActor* NewActor = GetWorld()->SpawnActor<AMeshAnchorActor>(
             MeshActorClass, FVector::ZeroVector, FRotator::ZeroRotator);
 
         if (NewActor)
         {
             NewActor->InitMeshAndLocation(MeshAsset, GeoCoord);
+
+            // Após o ajuste de altura, aplica rotação Z aleatória
+            float RandomYaw = FMath::FRandRange(1.0f, 360.0f);
+            FRotator CurrentRotation = NewActor->GetActorRotation();
+            CurrentRotation.Yaw = RandomYaw;
+            NewActor->SetActorRotation(CurrentRotation);
         }
     }
 
